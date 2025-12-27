@@ -1,0 +1,11 @@
+[package]
+name = "mortgage_sim"
+version = "0.1.0"
+edition = "2024"
+
+[profile.release]
+lto = "thin"
+
+[dependencies]
+inquire = "0.9.1"
+polars = "0.52.0"
