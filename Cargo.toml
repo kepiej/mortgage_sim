@@ -10,5 +10,5 @@ strip = true
 opt-level = "s"
 
 [dependencies]
+csv = "1.4.0"
 inquire = "0.9.1"
-polars = "0.52.0"

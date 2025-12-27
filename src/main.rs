@@ -4,9 +4,6 @@ mod paymentschemes;
 use inquire::{Confirm, CustomType, Select, Text};
 use mortgage::Mortgage;
 use paymentschemes::{MortgagePayments, PaymentScheme};
-use polars::io::csv::write::CsvWriter;
-use polars::prelude::SerWriter;
-use std::fs::File;
 use std::io;
 
 fn main() {
@@ -52,7 +49,7 @@ fn main() {
         ])
     }
 
-    let mort: Mortgage = Mortgage::new(capital, (nyears * 12) as i64, year_interest_rate);
+    let mort: Mortgage = Mortgage::new(capital, (nyears * 12) as i64, year_interest_rate.clone());
 
     let payscheme_str: &str = Select::new(
         "Type lening?",
@@ -81,7 +78,6 @@ fn main() {
     let mortpay: MortgagePayments = MortgagePayments::new(mort, payscheme);
 
     println!("Total repayment: {}", mortpay.total_repaid());
-    println!("{}", mortpay.to_pl());
 
     let save2file: bool = Confirm::new("Wil je de aflossingstabel bewaren in een bestand?")
         .with_default(true)
@@ -94,11 +90,6 @@ fn main() {
             .prompt()
             .unwrap();
 
-        let mut file = File::create(filename).expect("Bestand kon niet gemaakt worden!");
-        CsvWriter::new(&mut file)
-            .include_header(true)
-            .with_separator(b',')
-            .finish(&mut mortpay.to_pl())
-            .expect("Resultaten konden niet weggeschreven worden!");
+        mortpay.to_csv(filename);
     }
 }

@@ -1,5 +1,5 @@
 use crate::mortgage::{Mortgage, month_interest_rate};
-use polars::prelude as pl;
+use csv::Writer;
 use std::fmt;
 use std::str;
 
@@ -85,9 +85,10 @@ impl MortgagePayments {
         return self.payments().iter().sum();
     }
 
-    pub fn to_pl(&self) -> pl::DataFrame {
-        let saldo: Vec<f64> = self
-            .capital_paid()
+    pub fn to_csv(&self, filename: String) {
+        let payments: Vec<f64> = self.payments();
+        let capitalpaid: Vec<f64> = self.capital_paid();
+        let saldo: Vec<f64> = capitalpaid
             .iter()
             .scan(0.0, |acc, e| {
                 *acc += e;
@@ -95,19 +96,37 @@ impl MortgagePayments {
             })
             .collect();
 
-        let interests: Vec<f64> = self
-            .payments()
+        let interests: Vec<f64> = payments
             .iter()
-            .zip(self.capital_paid())
+            .zip(capitalpaid.iter())
             .map(|(a, b)| a - b)
             .collect();
 
-        let mortgage_df: pl::DataFrame = match pl::df!("month" => 1..self.mortgage.nperiods() + 1, "payment" => self.payments(), "saldo" => saldo, "monthly_interest_rate" => self.mortgage.monthly_interest_rate(), "capital_paid" => self.capital_paid(), "interest_paid" => interests)
-        {
-            Ok(res) => res,
-            Err(_) => pl::df!("month" => [f64::NAN], "payment" => [f64::NAN], "saldo" => [f64::NAN], "monthly_interest_rate" => [f64::NAN], "capital_paid" => [f64::NAN], "interest_paid" => [f64::NAN]).unwrap(),
-        };
-        return mortgage_df;
+        //TODO: Fix file path!
+        let mut wtr = Writer::from_path(filename).expect("Bestand kon niet gemaakt worden!");
+        wtr.serialize((
+            "month",
+            "payment",
+            "saldo",
+            "interest_rate",
+            "capital_paid",
+            "interests_paid",
+        ))
+        .expect("Failed");
+
+        let monthly_interest_rate: Vec<f64> = self.mortgage.monthly_interest_rate();
+        for i in 0usize..self.mortgage.nperiods() as usize {
+            wtr.serialize((
+                i + 1,
+                payments[i],
+                saldo[i],
+                monthly_interest_rate[i],
+                capitalpaid[i],
+                interests[i],
+            ))
+            .expect("Failed");
+        }
+        wtr.flush().expect("Flush failed");
     }
 }
 
