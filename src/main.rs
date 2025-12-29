@@ -1,16 +1,18 @@
 use std::f64;
+use std::path::PathBuf;
 mod mortgage;
 mod paymentschemes;
 use inquire::{Confirm, CustomType, Select, Text};
 use mortgage::Mortgage;
 use paymentschemes::{MortgagePayments, PaymentScheme};
+use std::env;
 use std::io;
 
 fn main() {
     let input: io::Stdin = io::stdin();
     let mut inbuffer = String::new();
 
-    let capital: f64 = CustomType::<f64>::new("Kapitaal?")
+    let principal: f64 = CustomType::<f64>::new("Kapitaal?")
         .with_help_message("Geef het te ontlenen bedrag in.")
         .prompt()
         .unwrap();
@@ -49,7 +51,7 @@ fn main() {
         ])
     }
 
-    let mort: Mortgage = Mortgage::new(capital, (nyears * 12) as i64, year_interest_rate.clone());
+    let mort: Mortgage = Mortgage::new(principal, (nyears * 12) as i64, year_interest_rate.clone());
 
     let payscheme_str: &str = Select::new(
         "Type lening?",
@@ -77,6 +79,7 @@ fn main() {
 
     let mortpay: MortgagePayments = MortgagePayments::new(mort, payscheme);
 
+    //println!("{:?}", mortpay);
     println!("Total repayment: {}", mortpay.total_repaid());
 
     let save2file: bool = Confirm::new("Wil je de aflossingstabel bewaren in een bestand?")
@@ -90,6 +93,9 @@ fn main() {
             .prompt()
             .unwrap();
 
-        mortpay.to_csv(filename);
+        let mut cur_dir: PathBuf = env::current_dir().expect("Cannot find current directory!");
+        cur_dir.push(filename);
+
+        mortpay.to_csv(cur_dir.as_path());
     }
 }
