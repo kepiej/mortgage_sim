@@ -2,7 +2,7 @@ use crate::mortgage::Mortgage;
 use csv::Writer;
 use serde::Serialize;
 use std::path::Path;
-use std::{f64, fmt, str};
+use std::{f64, fmt, io, str};
 
 #[derive(Debug, PartialEq)]
 pub enum PaymentScheme {
@@ -54,6 +54,33 @@ pub struct MonthlyPayment {
     balance: f64,
 }
 
+impl MonthlyPayment {
+    pub fn new(
+        month: usize,
+        yearly_interest_rate: f64,
+        payment: f64,
+        capital: Option<f64>,
+        balance: Option<f64>,
+    ) -> Self {
+        let capital_init: f64 = match capital {
+            Some(capital) => capital,
+            None => f64::NAN,
+        };
+
+        return Self {
+            month: month,
+            yearly_interest_rate: yearly_interest_rate,
+            payment: payment,
+            capital: capital_init,
+            interest: payment - capital_init,
+            balance: match balance {
+                Some(balance) => balance,
+                None => f64::NAN,
+            },
+        };
+    }
+}
+
 pub struct MortgagePayments {
     payments: Vec<MonthlyPayment>,
 }
@@ -83,14 +110,14 @@ impl MortgagePayments {
         return self.payments().iter().sum();
     }
 
-    pub fn to_csv(&self, filename: &Path) {
+    pub fn to_csv(&self, filename: &Path) -> io::Result<()> {
         let mut wtr = Writer::from_path(filename).expect("Bestand kon niet gemaakt worden!");
 
         for row in self.payments.iter() {
-            wtr.serialize(row).expect("Didn't work");
+            wtr.serialize(row)?
         }
 
-        wtr.flush().expect("Flush failed");
+        wtr.flush()
     }
 }
 
@@ -106,14 +133,13 @@ fn fixed_capital_payments(mort: Mortgage) -> Vec<MonthlyPayment> {
     for period in 0usize..nperiods as usize {
         saldo = principal - period as f64 * fixedcap;
         mens = fixedcap + m_interest_rate[period] * saldo;
-        payments.push(MonthlyPayment {
-            month: period + 1,
-            yearly_interest_rate: mort.yearly_interest_rate()[period],
-            payment: mens,
-            capital: fixedcap,
-            interest: mens - fixedcap,
-            balance: saldo,
-        })
+        payments.push(MonthlyPayment::new(
+            period + 1,
+            mort.yearly_interest_rate()[period],
+            mens,
+            Some(fixedcap),
+            Some(saldo),
+        ));
     }
 
     return payments;
@@ -124,19 +150,24 @@ fn fixed_mensualities(mort: Mortgage) -> Vec<MonthlyPayment> {
     let nperiods: i64 = mort.nperiods();
     let mut payments: Vec<MonthlyPayment> = Vec::new();
     let m_interest_rate: Vec<f64> = mort.monthly_interest_rate();
-    for period in 1usize..(nperiods + 1) as usize {
-        let mens: f64 = (principal
-            * m_interest_rate[period - 1]
-            * (1.0 + m_interest_rate[period - 1]).powf(nperiods as f64))
-            / ((1.0 + m_interest_rate[period - 1]).powf(nperiods as f64) - 1.0);
-        payments.push(MonthlyPayment {
-            month: period,
-            yearly_interest_rate: mort.yearly_interest_rate()[period - 1],
-            payment: mens,
-            capital: f64::NAN,
-            interest: f64::NAN,
-            balance: f64::NAN, //FIXME
-        });
+    let mut mens: f64;
+    let mut principal_portion: f64;
+    let mut balance: f64 = principal;
+    for period in 0usize..nperiods as usize {
+        mens = (principal
+            * m_interest_rate[period]
+            * (1.0 + m_interest_rate[period]).powf(nperiods as f64))
+            / ((1.0 + m_interest_rate[period]).powf(nperiods as f64) - 1.0);
+        //TODO: Verify this is correct
+        principal_portion = mens - (balance * m_interest_rate[period]);
+        payments.push(MonthlyPayment::new(
+            period + 1,
+            mort.yearly_interest_rate()[period],
+            mens,
+            Some(principal_portion),
+            Some(balance),
+        ));
+        balance -= principal_portion;
     }
     return payments;
 }
@@ -156,14 +187,13 @@ fn variable_linear_capital_payments(mort: Mortgage, initial_payment: f64) -> Vec
     let mut saldo: f64 = principal;
     for period in 1usize..(nperiods + 1) as usize {
         mens = xt[period - 1] + m_interest_rate[period - 1] * saldo;
-        payments.push(MonthlyPayment {
-            month: period,
-            yearly_interest_rate: mort.yearly_interest_rate()[period - 1],
-            payment: mens,
-            capital: xt[period - 1],
-            interest: m_interest_rate[period - 1] * saldo,
-            balance: saldo,
-        });
+        payments.push(MonthlyPayment::new(
+            period,
+            mort.yearly_interest_rate()[period - 1],
+            mens,
+            Some(xt[period - 1]),
+            Some(saldo),
+        ));
         saldo = principal - xt[..period].iter().sum::<f64>();
         xt.push(xt[period - 1] + delta);
     }

@@ -96,6 +96,6 @@ fn main() {
         let mut cur_dir: PathBuf = env::current_dir().expect("Cannot find current directory!");
         cur_dir.push(filename);
 
-        mortpay.to_csv(cur_dir.as_path());
+        mortpay.to_csv(cur_dir.as_path()).unwrap();
     }
 }
