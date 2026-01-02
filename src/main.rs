@@ -79,7 +79,7 @@ fn main() {
 
     let mortpay: MortgagePayments = MortgagePayments::new(mort, payscheme);
 
-    //println!("{:?}", mortpay);
+    println!("{}", mortpay);
     println!("Total repayment: {}", mortpay.total_repaid());
 
     let save2file: bool = Confirm::new("Wil je de aflossingstabel bewaren in een bestand?")

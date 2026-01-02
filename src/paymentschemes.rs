@@ -3,6 +3,8 @@ use csv::Writer;
 use serde::Serialize;
 use std::path::Path;
 use std::{f64, fmt, io, str};
+use tabled::settings::Concat;
+use tabled::{Table, Tabled};
 
 #[derive(Debug, PartialEq)]
 pub enum PaymentScheme {
@@ -44,7 +46,7 @@ impl fmt::Display for PaymentScheme {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug, Tabled)]
 pub struct MonthlyPayment {
     month: usize,
     yearly_interest_rate: f64,
@@ -83,6 +85,14 @@ impl MonthlyPayment {
 
 pub struct MortgagePayments {
     payments: Vec<MonthlyPayment>,
+}
+
+impl fmt::Display for MortgagePayments {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut head: Table = Table::new(self.payments[..5].iter());
+        let tail: Table = Table::new(self.payments[self.payments.len() - 5..].iter());
+        write!(f, "{}", head.with(Concat::vertical(tail)))
+    }
 }
 
 impl MortgagePayments {
@@ -124,22 +134,21 @@ impl MortgagePayments {
 fn fixed_capital_payments(mort: Mortgage) -> Vec<MonthlyPayment> {
     let principal: f64 = mort.principal();
     let nperiods: i64 = mort.nperiods();
-    let mut payments: Vec<MonthlyPayment> = Vec::new();
-    let fixedcap: f64 = principal / nperiods as f64;
-
     let m_interest_rate: Vec<f64> = mort.monthly_interest_rate();
-    let mut saldo: f64;
+    let mut payments: Vec<MonthlyPayment> = Vec::new();
+    let principal_portion: f64 = principal / nperiods as f64;
+    let mut balance: f64 = principal;
     let mut mens: f64;
     for period in 0usize..nperiods as usize {
-        saldo = principal - period as f64 * fixedcap;
-        mens = fixedcap + m_interest_rate[period] * saldo;
+        mens = principal_portion + m_interest_rate[period] * balance;
         payments.push(MonthlyPayment::new(
             period + 1,
             mort.yearly_interest_rate()[period],
             mens,
-            Some(fixedcap),
-            Some(saldo),
+            Some(principal_portion),
+            Some(balance),
         ));
+        balance -= principal_portion;
     }
 
     return payments;
@@ -148,8 +157,8 @@ fn fixed_capital_payments(mort: Mortgage) -> Vec<MonthlyPayment> {
 fn fixed_mensualities(mort: Mortgage) -> Vec<MonthlyPayment> {
     let principal: f64 = mort.principal();
     let nperiods: i64 = mort.nperiods();
-    let mut payments: Vec<MonthlyPayment> = Vec::new();
     let m_interest_rate: Vec<f64> = mort.monthly_interest_rate();
+    let mut payments: Vec<MonthlyPayment> = Vec::new();
     let mut mens: f64;
     let mut principal_portion: f64;
     let mut balance: f64 = principal;
@@ -158,7 +167,6 @@ fn fixed_mensualities(mort: Mortgage) -> Vec<MonthlyPayment> {
             * m_interest_rate[period]
             * (1.0 + m_interest_rate[period]).powf(nperiods as f64))
             / ((1.0 + m_interest_rate[period]).powf(nperiods as f64) - 1.0);
-        //TODO: Verify this is correct
         principal_portion = mens - (balance * m_interest_rate[period]);
         payments.push(MonthlyPayment::new(
             period + 1,
@@ -180,22 +188,21 @@ fn variable_linear_capital_payments(mort: Mortgage, initial_payment: f64) -> Vec
         * (principal - (nperiods as f64) * (initial_payment - (m_interest_rate[0] * principal)))
         / ((nperiods - 1) * nperiods) as f64;
     println!("{delta}");
-    let mut xt: Vec<f64> = Vec::new();
-    xt.push(initial_payment - (m_interest_rate[0] * principal));
     let mut payments: Vec<MonthlyPayment> = Vec::new();
+    let mut principal_portion: f64 = initial_payment - (m_interest_rate[0] * principal);
     let mut mens: f64;
-    let mut saldo: f64 = principal;
-    for period in 1usize..(nperiods + 1) as usize {
-        mens = xt[period - 1] + m_interest_rate[period - 1] * saldo;
+    let mut balance: f64 = principal;
+    for period in 0usize..nperiods as usize {
+        mens = principal_portion + m_interest_rate[period] * balance;
         payments.push(MonthlyPayment::new(
-            period,
-            mort.yearly_interest_rate()[period - 1],
+            period + 1,
+            mort.yearly_interest_rate()[period],
             mens,
-            Some(xt[period - 1]),
-            Some(saldo),
+            Some(principal_portion),
+            Some(balance),
         ));
-        saldo = principal - xt[..period].iter().sum::<f64>();
-        xt.push(xt[period - 1] + delta);
+        balance -= principal_portion;
+        principal_portion += delta;
     }
     return payments;
 }

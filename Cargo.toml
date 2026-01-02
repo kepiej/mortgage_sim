@@ -13,3 +13,4 @@ opt-level = "s"
 csv = "1.4.0"
 inquire = "0.9.1"
 serde = { version = "1.0.228", features = ["serde_derive"] }
+tabled = "0.20.0"
