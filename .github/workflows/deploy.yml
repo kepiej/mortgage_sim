@@ -26,7 +26,7 @@ jobs:
             target: x86_64-apple-darwin
 
           - build: windows
-            os: windows-2022
+            os: ubuntu-latest
             target: x86_64-pc-windows-gnu
 
     steps:
