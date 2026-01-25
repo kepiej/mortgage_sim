@@ -5,4 +5,6 @@ This is a small project that can simulate mortgage payments for different paymen
 - `fixed mensualities`: fixed monthly payments containing a variable mix of capital and interest over the period of the mortgage.
 - `variable linear capital`: monthly payment consists of a variable capital payment that increases/decreases with a fixed amount $\delta$ each period and interest on outstanding capital. $\delta$ is determined automatically based on the desired initial payment, the initial interest rate and the length of the mortgage.
 
+In case of a variable mortgage, the worst-case outcome is simulated: the interest rate jumps to the highest level at the first mortgage revision and stays there until the end of the mortgage.
+
 This is an educational project for me to learn Rust.
