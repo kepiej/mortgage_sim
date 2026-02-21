@@ -116,6 +116,10 @@ impl MortgagePayments {
         return self.payments.iter().map(|x| x.capital).collect();
     }
 
+    pub fn interest_paid(&self) -> Vec<f64> {
+        return self.payments.iter().map(|x| x.interest).collect();
+    }
+
     pub fn total_repaid(&self) -> f64 {
         return self.payments().iter().sum();
     }
