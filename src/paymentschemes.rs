@@ -6,7 +6,7 @@ use std::{f64, fmt, io, str};
 use tabled::settings::Concat;
 use tabled::{Table, Tabled};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum PaymentScheme {
     FixedCapital,
     FixedMensualities,
