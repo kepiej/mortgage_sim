@@ -1,0 +1,103 @@
+use csv::Writer;
+use serde::Serialize;
+use std::convert::From;
+use std::path::Path;
+use std::{fmt, io};
+
+use tabled::settings::{Concat, Panel};
+use tabled::{Table, Tabled};
+
+use crate::mortgage::Mortgage;
+use crate::paymentschemes::PaymentScheme;
+
+#[derive(Serialize, Debug, Tabled)]
+pub struct MonthlyPayment {
+    month: usize,
+    yearly_interest_rate: f64,
+    payment: f64,
+    capital: f64,
+    interest: f64,
+    balance: f64,
+}
+
+impl MonthlyPayment {
+    pub fn new(
+        month: usize,
+        yearly_interest_rate: f64,
+        payment: f64,
+        capital: Option<f64>,
+        balance: Option<f64>,
+    ) -> Self {
+        let capital_init: f64 = match capital {
+            Some(capital) => capital,
+            None => f64::NAN,
+        };
+
+        return Self {
+            month: month,
+            yearly_interest_rate: yearly_interest_rate,
+            payment: payment,
+            capital: capital_init,
+            interest: payment - capital_init,
+            balance: match balance {
+                Some(balance) => balance,
+                None => f64::NAN,
+            },
+        };
+    }
+}
+
+#[derive(Debug)]
+pub struct MortgagePayments {
+    payments: Vec<MonthlyPayment>,
+}
+
+impl fmt::Display for MortgagePayments {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut head: Table = Table::new(self.payments[..5].iter());
+        let tail: Table = Table::nohead(self.payments[self.payments.len() - 5..].iter())
+            .with(Panel::header(":"))
+            .to_owned();
+        write!(f, "{}", head.with(Concat::vertical(tail)))
+    }
+}
+
+impl From<Vec<MonthlyPayment>> for MortgagePayments {
+    fn from(value: Vec<MonthlyPayment>) -> Self {
+        return MortgagePayments { payments: value };
+    }
+}
+
+impl MortgagePayments {
+    pub fn new(m: Mortgage, p: PaymentScheme) -> Self {
+        return Self {
+            payments: p.monthly_payments(m),
+        };
+    }
+
+    pub fn payments(&self) -> Vec<f64> {
+        return self.payments.iter().map(|x| x.payment).collect();
+    }
+
+    pub fn capital_paid(&self) -> Vec<f64> {
+        return self.payments.iter().map(|x| x.capital).collect();
+    }
+
+    pub fn interest_paid(&self) -> Vec<f64> {
+        return self.payments.iter().map(|x| x.interest).collect();
+    }
+
+    pub fn total_repaid(&self) -> f64 {
+        return self.payments().iter().sum();
+    }
+
+    pub fn to_csv(&self, filename: &Path) -> io::Result<()> {
+        let mut wtr = Writer::from_path(filename).expect("Bestand kon niet gemaakt worden!");
+
+        for row in self.payments.iter() {
+            wtr.serialize(row)?
+        }
+
+        wtr.flush()
+    }
+}

@@ -1,16 +1,26 @@
 use crate::mortgage::Mortgage;
-use csv::Writer;
-use serde::Serialize;
-use std::path::Path;
-use std::{f64, fmt, io, str};
-use tabled::settings::Concat;
-use tabled::{Table, Tabled};
+use crate::mortgagepayments::MonthlyPayment;
+
+use std::{f64, fmt, str};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PaymentScheme {
     FixedCapital,
     FixedMensualities,
     VariableLinearCapital(f64),
+}
+
+impl PaymentScheme {
+    pub fn monthly_payments(&self, m: Mortgage) -> Vec<MonthlyPayment> {
+        let payments: Vec<MonthlyPayment> = match self {
+            PaymentScheme::FixedCapital => fixed_capital_payments(m),
+            PaymentScheme::FixedMensualities => fixed_mensualities(m),
+            PaymentScheme::VariableLinearCapital(init_pay) => {
+                variable_linear_capital_payments(m, *init_pay)
+            }
+        };
+        return payments;
+    }
 }
 
 impl str::FromStr for PaymentScheme {
@@ -43,95 +53,6 @@ impl fmt::Display for PaymentScheme {
                 write!(f, "VariableLinearCapital {}", init_pay)
             }
         }
-    }
-}
-
-#[derive(Serialize, Debug, Tabled)]
-pub struct MonthlyPayment {
-    month: usize,
-    yearly_interest_rate: f64,
-    payment: f64,
-    capital: f64,
-    interest: f64,
-    balance: f64,
-}
-
-impl MonthlyPayment {
-    pub fn new(
-        month: usize,
-        yearly_interest_rate: f64,
-        payment: f64,
-        capital: Option<f64>,
-        balance: Option<f64>,
-    ) -> Self {
-        let capital_init: f64 = match capital {
-            Some(capital) => capital,
-            None => f64::NAN,
-        };
-
-        return Self {
-            month: month,
-            yearly_interest_rate: yearly_interest_rate,
-            payment: payment,
-            capital: capital_init,
-            interest: payment - capital_init,
-            balance: match balance {
-                Some(balance) => balance,
-                None => f64::NAN,
-            },
-        };
-    }
-}
-
-pub struct MortgagePayments {
-    payments: Vec<MonthlyPayment>,
-}
-
-impl fmt::Display for MortgagePayments {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut head: Table = Table::new(self.payments[..5].iter());
-        let tail: Table = Table::new(self.payments[self.payments.len() - 5..].iter());
-        write!(f, "{}", head.with(Concat::vertical(tail)))
-    }
-}
-
-impl MortgagePayments {
-    pub fn new(m: Mortgage, p: PaymentScheme) -> Self {
-        let payments: Vec<MonthlyPayment> = match p {
-            PaymentScheme::FixedCapital => fixed_capital_payments(m),
-            PaymentScheme::FixedMensualities => fixed_mensualities(m),
-            PaymentScheme::VariableLinearCapital(init_pay) => {
-                variable_linear_capital_payments(m, init_pay)
-            }
-        };
-
-        return Self { payments: payments };
-    }
-
-    pub fn payments(&self) -> Vec<f64> {
-        return self.payments.iter().map(|x| x.payment).collect();
-    }
-
-    pub fn capital_paid(&self) -> Vec<f64> {
-        return self.payments.iter().map(|x| x.capital).collect();
-    }
-
-    pub fn interest_paid(&self) -> Vec<f64> {
-        return self.payments.iter().map(|x| x.interest).collect();
-    }
-
-    pub fn total_repaid(&self) -> f64 {
-        return self.payments().iter().sum();
-    }
-
-    pub fn to_csv(&self, filename: &Path) -> io::Result<()> {
-        let mut wtr = Writer::from_path(filename).expect("Bestand kon niet gemaakt worden!");
-
-        for row in self.payments.iter() {
-            wtr.serialize(row)?
-        }
-
-        wtr.flush()
     }
 }
 
@@ -215,6 +136,7 @@ fn variable_linear_capital_payments(mort: Mortgage, initial_payment: f64) -> Vec
 mod tests {
     use super::*;
     use crate::mortgage::year_to_monthly_interest;
+    use crate::mortgagepayments::MortgagePayments;
 
     #[test]
     fn test_parse_paymentscheme() {
@@ -232,16 +154,19 @@ mod tests {
 
     #[test]
     fn test_fixed_capital_payments() {
+        let m: Mortgage = Mortgage::new(92000.0, 1, [1.8 / 100.0; 1].to_vec());
         assert_eq!(
-            fixed_capital_payments(Mortgage::new(92000.0, 1, [1.8 / 100.0; 1].to_vec()))[0].payment,
+            MortgagePayments::from(PaymentScheme::FixedCapital.monthly_payments(m)).total_repaid(),
             92000.0 * (1.0 + year_to_monthly_interest(&(1.8 / 100.0)))
         )
     }
 
     #[test]
     fn test_fixed_mensualities() {
+        let m: Mortgage = Mortgage::new(92000.0, 1, [1.8 / 100.0; 1].to_vec());
         assert!(
-            fixed_mensualities(Mortgage::new(92000.0, 1, [1.8 / 100.0; 1].to_vec()))[0].payment
+            MortgagePayments::from(PaymentScheme::FixedMensualities.monthly_payments(m))
+                .total_repaid()
                 - 92000.0 * (1.0 + year_to_monthly_interest(&(1.8 / 100.0)))
                 <= 1e-6
         )

@@ -1,10 +1,12 @@
 use std::f64;
 use std::path::PathBuf;
 mod mortgage;
+mod mortgagepayments;
 mod paymentschemes;
 use inquire::{Confirm, CustomType, Select, Text};
 use mortgage::Mortgage;
-use paymentschemes::{MortgagePayments, PaymentScheme};
+use mortgagepayments::MortgagePayments;
+use paymentschemes::PaymentScheme;
 use std::env;
 use std::io;
 
@@ -28,12 +30,12 @@ fn main() {
     let year_r: f64;
     let mut year_interest_rate: Vec<f64>;
     if isfixed == "Vast" {
-        year_r = CustomType::<f64>::new("Jaarlijkse interestvoet?")
+        year_r = CustomType::<f64>::new("Jaarlijkse interestvoet (in %)?")
             .prompt()
             .unwrap();
         year_interest_rate = vec![year_r / 100.0; nyears * 12];
     } else {
-        year_r = CustomType::<f64>::new("Initieele interestvoet?")
+        year_r = CustomType::<f64>::new("Initieele interestvoet (in %)?")
             .prompt()
             .unwrap();
         let first_month_revision: usize =
