@@ -43,7 +43,7 @@ fn main() {
                 .prompt()
                 .unwrap();
         let max_year_interest_rate: f64 =
-            CustomType::<f64>::new("Maximale jaarlijkse interestvoet?")
+            CustomType::<f64>::new("Maximale jaarlijkse interestvoet (in %)?")
                 .prompt()
                 .unwrap();
         year_interest_rate = vec![year_r / 100.0; first_month_revision - 1];
