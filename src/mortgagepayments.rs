@@ -43,6 +43,7 @@ impl MonthlyPayment {
     }
 }
 
+#[allow(dead_code)]
 pub trait MortgagePayments {
     fn payments(&self) -> Vec<f64>;
 
