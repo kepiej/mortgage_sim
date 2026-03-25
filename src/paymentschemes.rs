@@ -156,7 +156,9 @@ mod tests {
     fn test_fixed_capital_payments() {
         let m: Mortgage = Mortgage::new(92000.0, 1, [1.8 / 100.0; 1].to_vec());
         assert_eq!(
-            MortgagePayments::from(PaymentScheme::FixedCapital.monthly_payments(m)).total_repaid(),
+            PaymentScheme::FixedCapital
+                .monthly_payments(m)
+                .total_repaid(),
             92000.0 * (1.0 + year_to_monthly_interest(&(1.8 / 100.0)))
         )
     }
@@ -165,7 +167,8 @@ mod tests {
     fn test_fixed_mensualities() {
         let m: Mortgage = Mortgage::new(92000.0, 1, [1.8 / 100.0; 1].to_vec());
         assert!(
-            MortgagePayments::from(PaymentScheme::FixedMensualities.monthly_payments(m))
+            PaymentScheme::FixedMensualities
+                .monthly_payments(m)
                 .total_repaid()
                 - 92000.0 * (1.0 + year_to_monthly_interest(&(1.8 / 100.0)))
                 <= 1e-6

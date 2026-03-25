@@ -5,7 +5,7 @@ mod mortgagepayments;
 mod paymentschemes;
 use inquire::{Confirm, CustomType, Select, Text};
 use mortgage::Mortgage;
-use mortgagepayments::MortgagePayments;
+use mortgagepayments::{MonthlyPayment, MortgagePayments, display};
 use paymentschemes::PaymentScheme;
 use std::env;
 use std::io;
@@ -79,9 +79,9 @@ fn main() {
         _ => payscheme_str.parse().unwrap(),
     };
 
-    let mortpay: MortgagePayments = MortgagePayments::new(mort, payscheme);
+    let mortpay: Vec<MonthlyPayment> = payscheme.monthly_payments(mort);
+    println!("{}", display(&mortpay));
 
-    println!("{}", mortpay);
     println!("Total repayment: {}", mortpay.total_repaid());
 
     let save2file: bool = Confirm::new("Wil je de aflossingstabel bewaren in een bestand?")
